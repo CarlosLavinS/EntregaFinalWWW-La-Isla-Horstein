@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String  @id
+  email            String  @unique
+  passwordHash     String
+  profile          String
+  run              String?
+  fullName         String?
+  address          String?
+  commune          String?
+  province         String?
+  region           String?
+  birthDate        String?
+  sex              String?
+  phone            String?
+  emailValidated   Boolean @default(false)
+  employeeRun      String?
+  position         String?
+
+  orders Order[]
+}
+
+model Category {
+  id       String    @id
+  name     String
+  products Product[]
+}
+
+model Product {
+  id          String   @id
+  name        String
+  description String
+  price       Float
+  imageUrl    String
+  available   Boolean  @default(true)
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+}
+
+model Order {
+  id                 String      @id
+  customerId         String
+  createdAt          DateTime
+  status             String
+  cancellationReason String
+  deliveryAddress    String
+  distanceKm         Float
+  customer           User        @relation(fields: [customerId], references: [id])
+  items              OrderItem[]
+  payments           Payment[]
+  sales              Sale[]
+}
+
+model OrderItem {
+  id        String @id
+  orderId   String
+  productId String
+  quantity  Int
+  unitPrice Float
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id                String @id
+  orderId           String
+  externalPlatform  String
+  transactionToken  String
+  status            String
+  order             Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Sale {
+  id                 String   @id
+  orderId            String
+  virtualCashierRole String
+  soldAt             DateTime
+  amount             Float
+  order              Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}

@@ -1,0 +1,37 @@
+{
+  "name": "fukusuke-sushi-backend",
+  "version": "1.0.0",
+  "description": "Backend academico para Fukusuke Sushi Delivery con GraphQL, gRPC y REST.",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n user,catalog,order,gateway -c blue,green,yellow,magenta \"npm:dev:user\" \"npm:dev:catalog\" \"npm:dev:order\" \"npm:dev:gateway\"",
+    "dev:user": "tsx src/user-service/index.ts",
+    "dev:catalog": "tsx src/catalog-service/index.ts",
+    "dev:order": "tsx src/order-service/index.ts",
+    "dev:gateway": "tsx src/api-gateway/index.ts",
+    "db:init": "python scripts/init-sqlite.py",
+    "db:studio": "prisma studio",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@apollo/server": "^5.5.1",
+    "@grpc/grpc-js": "^1.12.6",
+    "@grpc/proto-loader": "^0.7.13",
+    "@prisma/client": "^6.19.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "graphql": "^16.10.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.5",
+    "concurrently": "^9.1.2",
+    "prisma": "^6.19.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,188 @@
+syntax = "proto3";
+
+package fukusuke;
+
+message Empty {}
+
+message IdRequest {
+  string id = 1;
+}
+
+message EmailRequest {
+  string email = 1;
+}
+
+message PeriodRequest {
+  string from = 1;
+  string to = 2;
+}
+
+message CustomerInput {
+  string run = 1;
+  string fullName = 2;
+  string address = 3;
+  string commune = 4;
+  string province = 5;
+  string region = 6;
+  string birthDate = 7;
+  string sex = 8;
+  string email = 9;
+  string phone = 10;
+  string password = 11;
+}
+
+message AuthInput {
+  string email = 1;
+  string password = 2;
+}
+
+message User {
+  string id = 1;
+  string email = 2;
+  string profile = 3;
+  string run = 4;
+  string fullName = 5;
+  string address = 6;
+  string commune = 7;
+  string province = 8;
+  string region = 9;
+  string birthDate = 10;
+  string sex = 11;
+  string phone = 12;
+  bool emailValidated = 13;
+}
+
+message UsersResponse {
+  repeated User users = 1;
+}
+
+message AuthResponse {
+  bool ok = 1;
+  string userId = 2;
+  string profile = 3;
+}
+
+message CategoryInput {
+  string name = 1;
+}
+
+message Category {
+  string id = 1;
+  string name = 2;
+}
+
+message ProductInput {
+  string name = 1;
+  string description = 2;
+  double price = 3;
+  string imageUrl = 4;
+  string categoryId = 5;
+}
+
+message ProductAvailabilityInput {
+  string id = 1;
+  bool available = 2;
+}
+
+message Product {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  double price = 4;
+  string imageUrl = 5;
+  bool available = 6;
+  string categoryId = 7;
+}
+
+message ProductsResponse {
+  repeated Product products = 1;
+}
+
+message CategoriesResponse {
+  repeated Category categories = 1;
+}
+
+message OrderItemInput {
+  string productId = 1;
+  int32 quantity = 2;
+}
+
+message CreateOrderInput {
+  string customerId = 1;
+  string deliveryAddress = 2;
+  double distanceKm = 3;
+  repeated OrderItemInput items = 4;
+}
+
+message CancelOrderInput {
+  string orderId = 1;
+  string reason = 2;
+}
+
+message PaymentInput {
+  string orderId = 1;
+  string externalPlatform = 2;
+  string transactionToken = 3;
+}
+
+message OrderItem {
+  string productId = 1;
+  int32 quantity = 2;
+  double unitPrice = 3;
+  double subtotal = 4;
+}
+
+message Order {
+  string id = 1;
+  string customerId = 2;
+  string createdAt = 3;
+  string status = 4;
+  string cancellationReason = 5;
+  string deliveryAddress = 6;
+  double distanceKm = 7;
+  double total = 8;
+  repeated OrderItem items = 9;
+}
+
+message OrdersResponse {
+  repeated Order orders = 1;
+}
+
+message Payment {
+  string id = 1;
+  string orderId = 2;
+  string externalPlatform = 3;
+  string transactionToken = 4;
+  string status = 5;
+}
+
+message SaleReport {
+  int32 totalSales = 1;
+  double totalAmount = 2;
+  repeated Order orders = 3;
+}
+
+service UserService {
+  rpc CreateCustomer(CustomerInput) returns (User);
+  rpc Authenticate(AuthInput) returns (AuthResponse);
+  rpc GetCustomer(IdRequest) returns (User);
+  rpc ListCustomers(Empty) returns (UsersResponse);
+}
+
+service CatalogService {
+  rpc CreateCategory(CategoryInput) returns (Category);
+  rpc ListCategories(Empty) returns (CategoriesResponse);
+  rpc CreateProduct(ProductInput) returns (Product);
+  rpc GetProduct(IdRequest) returns (Product);
+  rpc ListProducts(Empty) returns (ProductsResponse);
+  rpc UpdateAvailability(ProductAvailabilityInput) returns (Product);
+}
+
+service OrderService {
+  rpc CreateOrder(CreateOrderInput) returns (Order);
+  rpc ConfirmPayment(PaymentInput) returns (Payment);
+  rpc CancelOrder(CancelOrderInput) returns (Order);
+  rpc GetOrder(IdRequest) returns (Order);
+  rpc ListOrders(Empty) returns (OrdersResponse);
+  rpc GetSalesReport(PeriodRequest) returns (SaleReport);
+}

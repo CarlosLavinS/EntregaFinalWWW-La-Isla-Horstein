@@ -1,25 +1,27 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useCart } from '../context/CartContext';
-import { ArrowLeft, MapPin, Phone, User, Mail, Home, Clock, CreditCard } from 'lucide-react';
+import { ArrowLeft, Clock, CreditCard, Home, Mail, MapPin, Phone, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { createCheckoutOrder } from '../services/api';
 
 export function Checkout() {
   const { cart, getCartTotal, clearCart } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
     address: '',
     commune: '',
     reference: '',
     comments: '',
   });
-
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const subtotal = getCartTotal();
@@ -28,54 +30,51 @@ export function Checkout() {
   const total = subtotal - discount + deliveryFee;
 
   const comunas = [
-    'Providencia', 'Las Condes', 'Vitacura', 'Ñuñoa', 'La Reina',
-    'Santiago Centro', 'Recoleta', 'Independencia', 'Quinta Normal',
-    'Estación Central', 'Maipú', 'La Florida', 'Puente Alto'
+    'Providencia',
+    'Las Condes',
+    'Vitacura',
+    'Nunoa',
+    'La Reina',
+    'Santiago Centro',
+    'Recoleta',
+    'Independencia',
+    'Quinta Normal',
+    'Estacion Central',
+    'Maipu',
+    'La Florida',
+    'Puente Alto',
   ];
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    // Limpiar error del campo cuando el usuario empieza a escribir
+    setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+      setErrors((prev) => ({ ...prev, [name]: '' }));
     }
   };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'El nombre es requerido';
-    }
-
+    if (!formData.name.trim()) newErrors.name = 'El nombre es requerido';
     if (!formData.email.trim()) {
       newErrors.email = 'El email es requerido';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email inválido';
+      newErrors.email = 'Email invalido';
     }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'El teléfono es requerido';
-    } else if (!/^\+?56\s?9\s?\d{4}\s?\d{4}$/.test(formData.phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'Teléfono inválido (formato: +56 9 XXXX XXXX)';
-    }
+    if (!formData.phone.trim()) newErrors.phone = 'El telefono es requerido';
 
     if (deliveryMethod === 'delivery') {
-      if (!formData.address.trim()) {
-        newErrors.address = 'La dirección es requerida';
-      }
-      if (!formData.commune) {
-        newErrors.commune = 'La comuna es requerida';
-      }
+      if (!formData.address.trim()) newErrors.address = 'La direccion es requerida';
+      if (!formData.commune) newErrors.commune = 'La comuna es requerida';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    e?.preventDefault();
 
     if (!validateForm()) {
       toast.error('Por favor completa todos los campos requeridos');
@@ -83,36 +82,45 @@ export function Checkout() {
     }
 
     if (cart.length === 0) {
-      toast.error('Tu carrito está vacío');
+      toast.error('Tu carrito esta vacio');
       return;
     }
 
-    // Simular procesamiento de orden
-    toast.success('¡Pedido realizado con éxito!', {
-      duration: 3000,
-      description: 'Te contactaremos pronto para confirmar tu pedido',
-    });
+    if (!user?.id) {
+      toast.error('Debes iniciar sesion para crear el pedido');
+      return;
+    }
 
-    // Guardar orden en localStorage para historial (futuro)
-    const order = {
-      id: Date.now(),
-      date: new Date().toISOString(),
-      items: cart,
-      total,
-      deliveryMethod,
-      paymentMethod,
-      customerInfo: formData,
-    };
+    setIsSubmitting(true);
 
-    const orders = JSON.parse(localStorage.getItem('sushi-orders') || '[]');
-    orders.push(order);
-    localStorage.setItem('sushi-orders', JSON.stringify(orders));
+    try {
+      const deliveryAddress =
+        deliveryMethod === 'delivery'
+          ? `${formData.address}${formData.reference ? `, ${formData.reference}` : ''}`
+          : 'Retiro en tienda';
 
-    // Limpiar carrito y redirigir
-    clearCart();
-    setTimeout(() => {
-      navigate('/');
-    }, 2000);
+      const order = await createCheckoutOrder({
+        customerId: user.id,
+        deliveryAddress,
+        distanceKm: deliveryMethod === 'delivery' ? 2.5 : 0,
+        items: cart.map((item) => ({ productId: item.id, quantity: item.quantity })),
+        paymentMethod,
+      });
+
+      toast.success('Pedido registrado en el backend', {
+        duration: 3000,
+        description: `Orden ${order.id} - ${order.status}`,
+      });
+
+      clearCart();
+      setTimeout(() => navigate('/my-orders'), 1200);
+    } catch (error) {
+      toast.error('No se pudo registrar el pedido', {
+        description: error instanceof Error ? error.message : 'Error desconocido del backend',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (cart.length === 0) {
@@ -120,14 +128,14 @@ export function Checkout() {
       <div className="flex-1 overflow-auto bg-neutral-50">
         <div className="max-w-7xl mx-auto px-4 py-16">
           <div className="text-center">
-            <div className="text-6xl mb-4">🛒</div>
-            <h2 className="text-3xl font-bold text-neutral-900 mb-4">Tu carrito está vacío</h2>
+            <div className="text-6xl mb-4">Carrito</div>
+            <h2 className="text-3xl font-bold text-neutral-900 mb-4">Tu carrito esta vacio</h2>
             <p className="text-neutral-600 mb-8">Agrega algunos productos antes de ir al checkout</p>
             <button
               onClick={() => navigate('/')}
               className="bg-red-600 text-white px-8 py-3 rounded-full hover:bg-red-700 transition-colors"
             >
-              Ver Menú
+              Ver Menu
             </button>
           </div>
         </div>
@@ -138,24 +146,21 @@ export function Checkout() {
   return (
     <div className="flex-1 overflow-auto bg-neutral-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
         <button
           onClick={() => navigate('/')}
           className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors mb-6"
         >
           <ArrowLeft size={20} />
-          <span>Volver al menú</span>
+          <span>Volver al menu</span>
         </button>
 
         <h1 className="text-4xl font-bold text-neutral-900 mb-8">Finalizar Pedido</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Form Section */}
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Delivery Method */}
               <div className="bg-white rounded-2xl p-6 shadow-sm">
-                <h2 className="text-2xl font-bold text-neutral-900 mb-4">Método de Entrega</h2>
+                <h2 className="text-2xl font-bold text-neutral-900 mb-4">Metodo de Entrega</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <button
                     type="button"
@@ -186,9 +191,8 @@ export function Checkout() {
                 </div>
               </div>
 
-              {/* Customer Information */}
               <div className="bg-white rounded-2xl p-6 shadow-sm">
-                <h2 className="text-2xl font-bold text-neutral-900 mb-4">Información de Contacto</h2>
+                <h2 className="text-2xl font-bold text-neutral-900 mb-4">Informacion de Contacto</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-neutral-700 mb-2">
@@ -203,14 +207,13 @@ export function Checkout() {
                       className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-red-600 transition-colors ${
                         errors.name ? 'border-red-500' : 'border-neutral-200'
                       }`}
-                      placeholder="Juan Pérez"
                     />
                     {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-neutral-700 mb-2">
                       <Phone size={16} className="inline mr-1" />
-                      Teléfono *
+                      Telefono *
                     </label>
                     <input
                       type="tel"
@@ -220,7 +223,6 @@ export function Checkout() {
                       className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-red-600 transition-colors ${
                         errors.phone ? 'border-red-500' : 'border-neutral-200'
                       }`}
-                      placeholder="+56 9 1234 5678"
                     />
                     {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
                   </div>
@@ -237,22 +239,20 @@ export function Checkout() {
                       className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-red-600 transition-colors ${
                         errors.email ? 'border-red-500' : 'border-neutral-200'
                       }`}
-                      placeholder="tu@email.com"
                     />
                     {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
                   </div>
                 </div>
               </div>
 
-              {/* Delivery Address */}
               {deliveryMethod === 'delivery' && (
                 <div className="bg-white rounded-2xl p-6 shadow-sm">
-                  <h2 className="text-2xl font-bold text-neutral-900 mb-4">Dirección de Entrega</h2>
+                  <h2 className="text-2xl font-bold text-neutral-900 mb-4">Direccion de Entrega</h2>
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-semibold text-neutral-700 mb-2">
                         <MapPin size={16} className="inline mr-1" />
-                        Dirección *
+                        Direccion *
                       </label>
                       <input
                         type="text"
@@ -262,14 +262,11 @@ export function Checkout() {
                         className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-red-600 transition-colors ${
                           errors.address ? 'border-red-500' : 'border-neutral-200'
                         }`}
-                        placeholder="Av. Providencia 1234, Depto 501"
                       />
                       {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                        Comuna *
-                      </label>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">Comuna *</label>
                       <select
                         name="commune"
                         value={formData.commune}
@@ -288,25 +285,21 @@ export function Checkout() {
                       {errors.commune && <p className="text-red-500 text-sm mt-1">{errors.commune}</p>}
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                        Referencia (opcional)
-                      </label>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">Referencia</label>
                       <input
                         type="text"
                         name="reference"
                         value={formData.reference}
                         onChange={handleChange}
                         className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:outline-none focus:border-red-600 transition-colors"
-                        placeholder="Ej: Casa roja, portón negro"
                       />
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Payment Method */}
               <div className="bg-white rounded-2xl p-6 shadow-sm">
-                <h2 className="text-2xl font-bold text-neutral-900 mb-4">Método de Pago</h2>
+                <h2 className="text-2xl font-bold text-neutral-900 mb-4">Metodo de Pago</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <button
                     type="button"
@@ -319,7 +312,7 @@ export function Checkout() {
                   >
                     <CreditCard className={`mx-auto mb-2 ${paymentMethod === 'card' ? 'text-red-600' : 'text-neutral-400'}`} size={32} />
                     <div className="font-semibold">Tarjeta</div>
-                    <div className="text-sm text-neutral-600">Débito/Crédito</div>
+                    <div className="text-sm text-neutral-600">Debito/Credito</div>
                   </button>
                   <button
                     type="button"
@@ -330,14 +323,13 @@ export function Checkout() {
                         : 'border-neutral-200 hover:border-neutral-300'
                     }`}
                   >
-                    <span className="text-4xl block mb-2">💵</span>
+                    <span className="text-4xl block mb-2">$</span>
                     <div className="font-semibold">Efectivo</div>
                     <div className="text-sm text-neutral-600">Al recibir</div>
                   </button>
                 </div>
               </div>
 
-              {/* Comments */}
               <div className="bg-white rounded-2xl p-6 shadow-sm">
                 <h2 className="text-2xl font-bold text-neutral-900 mb-4">Comentarios Adicionales</h2>
                 <textarea
@@ -346,25 +338,18 @@ export function Checkout() {
                   onChange={handleChange}
                   rows={4}
                   className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:outline-none focus:border-red-600 transition-colors resize-none"
-                  placeholder="Alguna indicación especial para tu pedido..."
                 />
               </div>
             </form>
           </div>
 
-          {/* Order Summary */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-2xl p-6 shadow-sm sticky top-4">
               <h2 className="text-2xl font-bold text-neutral-900 mb-4">Resumen del Pedido</h2>
-              
               <div className="space-y-3 mb-6 max-h-60 overflow-y-auto">
                 {cart.map((item) => (
                   <div key={item.id} className="flex gap-3 pb-3 border-b border-neutral-100">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-16 h-16 object-cover rounded-lg"
-                    />
+                    <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg" />
                     <div className="flex-1">
                       <h3 className="font-semibold text-sm">{item.name}</h3>
                       <p className="text-neutral-600 text-sm">
@@ -388,7 +373,7 @@ export function Checkout() {
                 )}
                 {deliveryFee > 0 && (
                   <div className="flex justify-between text-neutral-600">
-                    <span>Costo de envío</span>
+                    <span>Costo de envio</span>
                     <span>${deliveryFee.toLocaleString('es-CL')}</span>
                   </div>
                 )}
@@ -401,14 +386,11 @@ export function Checkout() {
 
               <button
                 onClick={handleSubmit}
-                className="w-full bg-red-600 text-white py-4 rounded-full hover:bg-red-700 transition-colors font-semibold text-lg"
+                disabled={isSubmitting}
+                className="w-full bg-red-600 text-white py-4 rounded-full hover:bg-red-700 transition-colors font-semibold text-lg disabled:cursor-not-allowed disabled:bg-neutral-400"
               >
-                Realizar Pedido
+                {isSubmitting ? 'Registrando pedido...' : 'Realizar Pedido'}
               </button>
-
-              <p className="text-xs text-neutral-500 text-center mt-4">
-                Al realizar el pedido, aceptas nuestros términos y condiciones
-              </p>
             </div>
           </div>
         </div>

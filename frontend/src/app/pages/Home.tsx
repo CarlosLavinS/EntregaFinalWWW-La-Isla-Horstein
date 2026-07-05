@@ -4,12 +4,13 @@ import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import { ProductCard } from '../components/ProductCard';
 import { ProductDetailModal } from '../components/ProductDetailModal';
 import { useCart } from '../context/CartContext';
-import { products, categories } from '../data/products';
-import { Product } from '../context/CartContext';
+import { useProducts } from '../context/ProductContext';
+import type { Product } from '../context/CartContext';
 import { toast } from 'sonner';
 
 export function Home() {
   const { addToCart } = useCart();
+  const { products, categories, isLoading, error } = useProducts();
   const [selectedCategory, setSelectedCategory] = useState('todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -96,7 +97,7 @@ export function Home() {
               <MapPin size={24} />
               <div className="text-left">
                 <div className="font-semibold">Ubicación</div>
-                <div className="text-sm opacity-90">Av. Providencia 1234, Santiago</div>
+                <div className="text-sm opacity-90">Av. El olimpo 603 / Maipú / Santiago</div>
               </div>
             </div>
           </div>
@@ -144,7 +145,16 @@ export function Home() {
           </div>
 
           {/* Products Grid */}
-          {filteredProducts.length > 0 ? (
+          {isLoading ? (
+            <div className="text-center py-16">
+              <p className="text-2xl text-neutral-500">Cargando productos...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-16">
+              <p className="text-2xl text-red-600 mb-2">No se pudo cargar el catalogo</p>
+              <p className="text-neutral-500">{error}</p>
+            </div>
+          ) : filteredProducts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredProducts.map((product) => (
                 <ProductCard
@@ -181,7 +191,7 @@ export function Home() {
       </section>
 
       {/* Why Choose Us */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+      <section id="about" className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-4xl md:text-5xl text-center mb-12 text-neutral-900">¿Por Qué Elegirnos?</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -205,13 +215,13 @@ export function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-neutral-900 text-white py-12 px-4 sm:px-6 lg:px-8">
+      <footer id="contact" className="bg-neutral-900 text-white py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-6">
             <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
               <span className="text-white text-2xl">🍣</span>
             </div>
-            <span className="text-3xl">Fukusuke Sushi-Delivery</span>
+            <span className="text-3xl">Fukusuke Sushi</span>
           </div>
           <p className="text-neutral-400 mb-6">
             Auténtica experiencia japonesa desde 2010
@@ -222,7 +232,7 @@ export function Home() {
             <a href="#" className="text-neutral-400 hover:text-white transition-colors">Twitter</a>
           </div>
           <p className="text-neutral-500 text-sm">
-            © 2026 Fukusuke Sushi-Delivery. Todos los derechos reservados.
+            © 2026 Fukusuke Sushi. Todos los derechos reservados.
           </p>
         </div>
       </footer>

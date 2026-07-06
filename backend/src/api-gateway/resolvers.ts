@@ -29,7 +29,13 @@ export const resolvers = {
     }
   },
   OrderItem: {
-    product: async (item: { productId: string }) => clients.catalog.getProduct(item.productId)
+    product: async (item: { productId: string }) => {
+      try {
+        return await clients.catalog.getProduct(item.productId);
+      } catch {
+        return null;
+      }
+    }
   },
   Mutation: {
     createCustomer: async (_parent: unknown, args: { input: any }) => clients.users.createCustomer(args.input),

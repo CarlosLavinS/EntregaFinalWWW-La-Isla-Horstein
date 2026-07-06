@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle, Clock, DollarSign, Eye, Package, ShoppingBag, TrendingUp, XCircle } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import Chart from 'chart.js/auto';
+import type { ChartConfiguration } from 'chart.js';
+import { BarChart3, CheckCircle, Clock, DollarSign, Eye, Package, PieChart, ShoppingBag, TrendingUp, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ProductManagement } from '../components/ProductManagement';
 import { fetchCustomers, fetchOrders, type BackendCustomer, type BackendOrder } from '../services/api';
@@ -45,6 +47,8 @@ export function AdminDashboard() {
     [orders]
   );
 
+  const reports = useMemo(() => buildReports(orders), [orders]);
+
   const customerById = (id: string) => customers.find((customer) => customer.id === id);
 
   return (
@@ -65,6 +69,36 @@ export function AdminDashboard() {
           <StatCard label="Pedidos Pendientes" value={stats.pendingOrders.toString()} icon={<Clock className="text-yellow-600" size={24} />} />
           <StatCard label="Pedidos Pagados" value={stats.completedOrders.toString()} icon={<CheckCircle className="text-purple-600" size={24} />} />
         </div>
+
+        <section className="bg-white rounded-2xl shadow-sm p-6 mb-8">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-neutral-900">Reporteria y visualizacion</h2>
+              <p className="text-neutral-600">Indicadores generados con Chart.js desde pedidos reales del sistema.</p>
+            </div>
+            <BarChart3 className="text-blue-600" size={24} />
+          </div>
+
+          {isLoading ? (
+            <div className="py-12 text-center text-neutral-500">Cargando reportes...</div>
+          ) : error ? (
+            <div className="py-12 text-center text-red-600">{error}</div>
+          ) : orders.length === 0 ? (
+            <div className="py-12 text-center text-neutral-500">Aun no hay datos para graficar.</div>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <ReportChart title="Ingresos ultimos 7 dias" description="Ventas agrupadas por fecha" config={reports.revenueByDayConfig} className="xl:col-span-2" />
+              <ReportChart title="Pedidos por estado" description="Distribucion operacional" config={reports.ordersByStatusConfig} />
+              {reports.hasTopProducts ? (
+                <ReportChart title="Productos mas vendidos" description="Unidades vendidas por producto" config={reports.topProductsConfig} className="xl:col-span-3" />
+              ) : (
+                <div className="xl:col-span-3 border border-neutral-200 rounded-xl p-12 text-center text-neutral-500">
+                  No hay productos vigentes para mostrar en el ranking.
+                </div>
+              )}
+            </div>
+          )}
+        </section>
 
         <div className="mb-8">
           <ProductManagement />
@@ -160,7 +194,7 @@ export function AdminDashboard() {
                   <div className="space-y-2">
                     {selectedOrder.items.map((item) => (
                       <div key={item.productId} className="flex justify-between border-b border-neutral-100 pb-2">
-                        <span>{item.product?.name ?? item.productId} x {item.quantity}</span>
+                        <span>{getProductDisplayName(item)} x {item.quantity}</span>
                         <span className="font-semibold">${item.subtotal.toLocaleString('es-CL')}</span>
                       </div>
                     ))}
@@ -174,6 +208,45 @@ export function AdminDashboard() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ReportChart({
+  title,
+  description,
+  config,
+  className = '',
+}: {
+  title: string;
+  description: string;
+  config: ChartConfiguration;
+  className?: string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    const chart = new Chart(canvasRef.current, config);
+
+    return () => {
+      chart.destroy();
+    };
+  }, [config]);
+
+  return (
+    <div className={`border border-neutral-200 rounded-xl p-5 ${className}`}>
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <h3 className="text-lg font-bold text-neutral-900">{title}</h3>
+          <p className="text-sm text-neutral-500">{description}</p>
+        </div>
+        <PieChart className="text-neutral-400 shrink-0" size={20} />
+      </div>
+      <div className="relative h-72">
+        <canvas ref={canvasRef} aria-label={title} />
       </div>
     </div>
   );
@@ -205,6 +278,149 @@ function getStatusText(status: string) {
     default:
       return status;
   }
+}
+
+function buildReports(orders: BackendOrder[]) {
+  const currencyFormatter = new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    maximumFractionDigits: 0,
+  });
+  const lastSevenDays = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - index));
+    return {
+      key: formatDateKey(date),
+      label: date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }),
+    };
+  });
+  const revenueByDay = new Map(lastSevenDays.map((day) => [day.key, 0]));
+  const ordersByStatus = new Map<string, number>();
+  const productSales = new Map<string, number>();
+
+  orders.forEach((order) => {
+    const orderKey = formatDateKey(new Date(order.createdAt));
+
+    if (revenueByDay.has(orderKey)) {
+      revenueByDay.set(orderKey, (revenueByDay.get(orderKey) ?? 0) + order.total);
+    }
+
+    ordersByStatus.set(order.status, (ordersByStatus.get(order.status) ?? 0) + 1);
+
+    order.items.filter((item) => item.product).forEach((item) => {
+      const productName = item.product!.name;
+      productSales.set(productName, (productSales.get(productName) ?? 0) + item.quantity);
+    });
+  });
+
+  const topProducts = [...productSales.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const statusEntries = [...ordersByStatus.entries()];
+
+  const baseOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: {
+          color: '#404040',
+          boxWidth: 12,
+          font: { size: 12 },
+        },
+      },
+    },
+  };
+
+  return {
+    revenueByDayConfig: {
+      type: 'bar',
+      data: {
+        labels: lastSevenDays.map((day) => day.label),
+        datasets: [
+          {
+            label: 'Ingresos',
+            data: lastSevenDays.map((day) => revenueByDay.get(day.key) ?? 0),
+            backgroundColor: '#2563eb',
+            borderRadius: 8,
+          },
+        ],
+      },
+      options: {
+        ...baseOptions,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              color: '#525252',
+              callback: (value) => currencyFormatter.format(Number(value)),
+            },
+          },
+          x: {
+            ticks: { color: '#525252' },
+            grid: { display: false },
+          },
+        },
+      },
+    } satisfies ChartConfiguration,
+    ordersByStatusConfig: {
+      type: 'doughnut',
+      data: {
+        labels: statusEntries.map(([status]) => getStatusText(status)),
+        datasets: [
+          {
+            label: 'Pedidos',
+            data: statusEntries.map(([, count]) => count),
+            backgroundColor: ['#16a34a', '#f59e0b', '#2563eb', '#dc2626', '#737373'],
+            borderWidth: 0,
+          },
+        ],
+      },
+      options: {
+        ...baseOptions,
+        cutout: '62%',
+      },
+    } satisfies ChartConfiguration,
+    topProductsConfig: {
+      type: 'bar',
+      data: {
+        labels: topProducts.map(([name]) => name),
+        datasets: [
+          {
+            label: 'Unidades vendidas',
+            data: topProducts.map(([, quantity]) => quantity),
+            backgroundColor: '#0f766e',
+            borderRadius: 8,
+          },
+        ],
+      },
+      options: {
+        ...baseOptions,
+        indexAxis: 'y',
+        scales: {
+          x: {
+            beginAtZero: true,
+            ticks: { color: '#525252', precision: 0 },
+          },
+          y: {
+            ticks: { color: '#525252' },
+            grid: { display: false },
+          },
+        },
+      },
+    } satisfies ChartConfiguration,
+    hasTopProducts: topProducts.length > 0,
+  };
+}
+
+function formatDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+function getProductDisplayName(item: BackendOrder['items'][number]) {
+  return item.product?.name ?? 'Producto eliminado';
 }
 
 function getStatusColor(status: string) {

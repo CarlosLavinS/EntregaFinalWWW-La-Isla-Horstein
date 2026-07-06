@@ -10,6 +10,7 @@ Integrantes:
 ## Requisitos
 
 - Node.js LTS instalado.
+- Chart.js instalado
 
 ## Como levantar el proyecto
 
@@ -49,6 +50,13 @@ npm run test
 ```bash
 npm run dev
 ```
+---
+
+**Para ver los datos en una interfaz visual se puede usar:**
+```bash
+npm run db:studio
+```
+
 ---
 
 ### Terminal 2 → Frontend

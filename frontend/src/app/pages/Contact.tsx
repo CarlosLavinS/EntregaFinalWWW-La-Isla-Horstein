@@ -36,8 +36,7 @@ export function Contact() {
           <p className="text-red-600 font-semibold mb-3">Contacto</p>
           <h1 className="text-5xl font-bold text-neutral-900 mb-4">Hablemos de tu pedido</h1>
           <p className="text-lg text-neutral-600 max-w-2xl">
-            Usa esta vista para revisar datos del local y enviar una consulta. El estado del catálogo se lee desde la
-            conexión actual con el backend.
+            Utiliza este espacio para revisar la información de nuestro local en Maipú o enviarnos cualquier duda. Estamos atentos para ayudarte con tus consultas, pedidos especiales o comentarios.
           </p>
         </div>
       </section>

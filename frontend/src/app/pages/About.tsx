@@ -42,15 +42,15 @@ export function About() {
           <div className="lg:col-span-1">
             <h2 className="text-4xl font-bold text-neutral-900 mb-4">Como trabajamos</h2>
             <p className="text-neutral-600">
-              El frontend consulta el catálogo y pedidos desde el API Gateway GraphQL. Eso permite que el menú,
-              checkout y panel admin usen la misma información persistida en SQLite.
+              En Fukusuke Sushi, unimos la tradición de la cocina japonesa con la comodidad del servicio digital para que disfrutes de tus piezas favoritas estés donde estés. 
+              Nuestro sistema conecta el menú, tu cuenta y nuestro local de forma inmediata para ofrecerte la mejor experiencia.
             </p>
           </div>
           <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Value icon={<Clock size={24} />} title="Preparación eficiente" text="Pedidos organizados para despacho y retiro en tienda." />
-            <Value icon={<Users size={24} />} title="Clientes registrados" text="Login y registro conectados con el backend de usuarios." />
-            <Value icon={<MapPin size={24} />} title="Cobertura local" text="Entrega pensada para comunas cercanas al local." />
-            <Value icon={<ShieldCheck size={24} />} title="Datos persistentes" text="Productos, clientes y pedidos salen de la base del backend." />
+            <Value icon={<Clock size={24} />} title="Preparación eficiente" text="Tu pedido se organiza en la cocina apenas confirmas el pago en la web. Así garantizamos que tu sushi se prepare al momento, fresco y rápido, ya sea para despacho a domicilio o para que lo pases a retirar por nuestro mesón." />
+            <Value icon={<Users size={24} />} title="Clientes registrados" text="Al crear tu cuenta con un proceso rápido y seguro, accedes a un panel exclusivo. Desde ahí puedes guardar tus datos de despacho, revisar tus pedidos frecuentes y acceder antes que nadie a nuestras mejores promociones y ofertas." />
+            <Value icon={<MapPin size={24} />} title="Cobertura local" text="Para asegurar que el sushi llegue con la frescura y calidad que nos caracteriza, contamos con repartidores propios que realizan despachos gratuitos dentro de un radio de 3 kilómetros a la redonda de nuestro local en Maipú." />
+            <Value icon={<ShieldCheck size={24} />} title="Datos persistentes" text="Tu información personal, tus preferencias y tus solicitudes de compra se guardan de forma totalmente segura y confidencial. Nos aseguramos de que tus transacciones y datos de contacto estén siempre protegidos bajo estrictas medidas de seguridad." />
           </div>
         </div>
       </section>
@@ -58,8 +58,8 @@ export function About() {
       <section className="px-4 sm:px-6 lg:px-8 py-14 bg-neutral-900 text-white">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
-            <h2 className="text-3xl font-bold mb-2">Revisa el menú conectado</h2>
-            <p className="text-neutral-300">Los productos disponibles vienen directamente desde el backend.</p>
+            <h2 className="text-3xl font-bold mb-2">Explora nuestra carta online</h2>
+            <p className="text-neutral-300">Encuentra todos nuestros rolls, promociones y tablas disponibles al momento. Siempre actualizados para que elijas tus favoritos de forma rápida.</p>
           </div>
           <button
             onClick={() => navigate('/')}

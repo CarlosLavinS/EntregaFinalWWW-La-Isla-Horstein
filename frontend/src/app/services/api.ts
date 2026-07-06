@@ -122,15 +122,15 @@ export async function fetchCatalog() {
     }
   `);
 
+  const products = data.products.filter((product) => product.available).map(toProduct);
+  const categoryIdsWithProducts = new Set(products.map((product) => product.category));
   const categories = [
     { id: 'todos', name: 'Todos', icon: categoryIcon('Todos') },
-    ...data.categories.map((category) => ({
+    ...data.categories.filter((category) => categoryIdsWithProducts.has(category.id)).map((category) => ({
       ...category,
       icon: categoryIcon(category.name),
     })),
   ];
-
-  const products = data.products.filter((product) => product.available).map(toProduct);
 
   return { categories, products };
 }
